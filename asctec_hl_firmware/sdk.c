@@ -221,7 +221,7 @@ void SDK_mainloop(void)
   sdkCycleStartTime = T1TC;
 
   WO_SDK.ctrl_mode = 0x02; // attitude and throttle control
-  WO_SDK.disable_motor_onoff_by_stick = 0;
+  //WO_SDK.disable_motor_onoff_by_stick = 0;
 
   sdkLoops++;
 
@@ -706,6 +706,274 @@ inline void watchdog(void)
     lastTxPackets = UART_rxGoodPacketCount;
   }
 }
+
+
+/* This function demonstrates a simple waypoint command generation. Switch on Channel 7 is used
+ * to activate a 15m by 15m square. Therefore a waypoint is calculated from the current position and
+ * height and is transmitted to the low level processor. The waypoint status is monitored to switch to
+ * the next waypoint after the current one is reached.
+ *
+ * wpCtrlWpCmd is used to send a command to the low level processor. Different options like waypoint, launch, land, come home, set home
+ * are available. See LL_HL_comm.h for WP_CMD_* defines
+ *
+ * wpCtrlWpCmdUpdated has to be set to 1 to send the command. When the cmd is sent it is set back to 0 automatically
+ *
+ * wpCtrlAckTrigger is set to 1 when the LL accepts the waypoint
+ *
+ * wpCtrlNavStatus gives you a navigation status. See WP_NAVSTAT_* defines in SDK.h for options
+ *
+ * wpCtrlDistToWp gives you the current distance to the current waypoint in dm (= 10 cm)
+ */
+void SDK_EXAMPLE_gps_waypoint_control()
+{
+	static unsigned char wpExampleState=0;
+	static double originLat,originLon;
+
+
+	WO_SDK.ctrl_mode=0x03;
+
+	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
+							//1: enable control by HL processor
+
+	switch (wpExampleState)
+	{
+		//prior to start, the lever on channel 7 has to be in "OFF" position
+		case 0:
+		if (RO_RC_Data.channel[6]<1600)
+			wpExampleState=1;
+		break;
+
+		case 1:
+		if (RO_RC_Data.channel[6]>2400)
+		{
+			double lat,lon;
+			//lever was set to "ON" state -> calculate and send first waypoint and switch state
+
+			//fill waypoint structure
+			wpToLL.max_speed=100;
+			wpToLL.pos_acc=3000; 	//3m accuracy
+			wpToLL.time=400; 		//4 seconds waiting time at each waypoint
+			wpToLL.wp_activated=1;
+
+			//see LL_HL_comm.h for WPPROP defines
+			wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+			//use current height and yaw
+			wpToLL.yaw=IMU_CalcData.angle_yaw; //use current yaw
+			wpToLL.height=IMU_CalcData.height; //use current height
+
+			originLat=(double)GPS_Data.latitude/10000000.0;
+			originLon=(double)GPS_Data.longitude/10000000.0;
+
+			//calculate a position 15m north of us
+			xy2latlon(originLat,originLon,0.0,15.0,&lat,&lon);
+
+			wpToLL.X=lon*10000000;
+			wpToLL.Y=lat*10000000;
+
+			//calc chksum
+			wpToLL.chksum = 0xAAAA
+									+ wpToLL.yaw
+									+ wpToLL.height
+									+ wpToLL.time
+									+ wpToLL.X
+									+ wpToLL.Y
+									+ wpToLL.max_speed
+									+ wpToLL.pos_acc
+									+ wpToLL.properties
+									+ wpToLL.wp_activated;
+
+			//send waypoint
+			wpCtrlAckTrigger=0;
+			wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+			wpCtrlWpCmdUpdated=1;
+
+			wpExampleState=2;
+
+		}
+		break;
+
+		case 2:
+			//wait until cmd is processed and sent to LL processor
+			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
+			{
+				//check if waypoint was reached and wait time is over
+				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
+				{
+					//new waypoint
+					double lat,lon;
+
+					//fill waypoint structure
+					wpToLL.max_speed=100;
+					wpToLL.pos_acc=3000; //3m accuracy
+					wpToLL.time=400; //4 seconds wait time
+					wpToLL.wp_activated=1;
+
+					//see LL_HL_comm.h for WPPROP defines
+					wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+					//use current height and yaw
+					wpToLL.yaw=IMU_CalcData.angle_yaw; //use current yaw
+					wpToLL.height=IMU_CalcData.height; //use current height
+
+					//calculate a position 15m north and 15m east of origin
+					xy2latlon(originLat,originLon,15.0,15.0,&lat,&lon);
+
+					wpToLL.X=lon*10000000;
+					wpToLL.Y=lat*10000000;
+
+					//calc chksum
+					wpToLL.chksum = 0xAAAA
+											+ wpToLL.yaw
+											+ wpToLL.height
+											+ wpToLL.time
+											+ wpToLL.X
+											+ wpToLL.Y
+											+ wpToLL.max_speed
+											+ wpToLL.pos_acc
+											+ wpToLL.properties
+											+ wpToLL.wp_activated;
+					//send waypoint
+					wpCtrlAckTrigger=0;
+					wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+					wpCtrlWpCmdUpdated=1;
+
+					wpExampleState=3;
+				}
+
+				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+					wpExampleState=0;
+
+
+			}
+			if (RO_RC_Data.channel[6]<1600)
+						wpExampleState=0;
+		break;
+
+		case 3:
+			//wait until cmd is processed and sent to LL processor
+			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
+			{
+				//check if waypoint was reached and wait time is over
+				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
+				{
+					//new waypoint
+					double lat,lon;
+
+					//fill waypoint structure
+					wpToLL.max_speed=100;
+					wpToLL.pos_acc=3000; //3m accuracy
+					wpToLL.time=400; //4 seconds wait time
+					wpToLL.wp_activated=1;
+
+					//see LL_HL_comm.h for WPPROP defines
+					wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+					//use current height and yaw
+					wpToLL.yaw=IMU_CalcData.angle_yaw; //use current yaw
+					wpToLL.height=IMU_CalcData.height; //use current height
+
+					//calculate a position 15m east of origin
+					xy2latlon(originLat,originLon,15.0,0.0,&lat,&lon);
+
+					wpToLL.X=lon*10000000;
+					wpToLL.Y=lat*10000000;
+
+					//calc chksum
+					wpToLL.chksum = 0xAAAA
+											+ wpToLL.yaw
+											+ wpToLL.height
+											+ wpToLL.time
+											+ wpToLL.X
+											+ wpToLL.Y
+											+ wpToLL.max_speed
+											+ wpToLL.pos_acc
+											+ wpToLL.properties
+											+ wpToLL.wp_activated;
+
+					//send waypoint
+					wpCtrlAckTrigger=0;
+					wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+					wpCtrlWpCmdUpdated=1;
+
+					wpExampleState=4;
+				}
+
+				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+					wpExampleState=0;
+
+
+			}
+			if (RO_RC_Data.channel[6]<1600)
+						wpExampleState=0;
+		break;
+
+		case 4:
+			//wait until cmd is processed and sent to LL processor
+			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
+			{
+				//check if waypoint was reached and wait time is over
+				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
+				{
+
+					//fill waypoint structure
+					wpToLL.max_speed=100;
+					wpToLL.pos_acc=3000; //3m accuracy
+					wpToLL.time=400; //4 seconds wait time
+					wpToLL.wp_activated=1;
+
+					//see LL_HL_comm.h for WPPROP defines
+					wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+					//use current height and yaw
+					wpToLL.yaw=IMU_CalcData.angle_yaw; //use current yaw
+					wpToLL.height=IMU_CalcData.height; //use current height
+
+					//go to the beginning
+
+					wpToLL.X=originLon*10000000;
+					wpToLL.Y=originLat*10000000;
+
+					//calc chksum
+					wpToLL.chksum = 0xAAAA
+											+ wpToLL.yaw
+											+ wpToLL.height
+											+ wpToLL.time
+											+ wpToLL.X
+											+ wpToLL.Y
+											+ wpToLL.max_speed
+											+ wpToLL.pos_acc
+											+ wpToLL.properties
+											+ wpToLL.wp_activated;
+
+					//send waypoint
+					wpCtrlAckTrigger=0;
+					wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+					wpCtrlWpCmdUpdated=1;
+
+					wpExampleState=0;
+				}
+
+				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+					wpExampleState=0;
+
+
+			}
+			if (RO_RC_Data.channel[6]<1600)
+						wpExampleState=0;
+		break;
+
+		default:
+			wpExampleState=0;
+		break;
+	}
+
+}
+
+
+
+
+
 
 inline int checkTxPeriod(uint16_t period)
 {
