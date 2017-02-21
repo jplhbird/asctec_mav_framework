@@ -773,13 +773,17 @@ void SDK_EXAMPLE_gps_waypoint_control()
 	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
 							//1: enable control by HL processor
 
+	statusData.debug1 = wpExampleState;
+
 	switch (wpExampleState)
 	{
 		//prior to start, the lever on channel 7 has to be in "OFF" position
-//		case 0:
-//		if (RO_RC_Data.channel[6]<1600)
-//			wpExampleState=1;
-//		break;
+		case 0:
+		//if (RO_RC_Data.channel[6]<1600)
+			wpExampleState=1;
+		break;
+
+
 
 		case 1:
 	//	if (RO_RC_Data.channel[6]>2400)
@@ -827,10 +831,6 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			wpCtrlWpCmdUpdated=1;
 
 			wpExampleState=2;
-
-			statusData.debug1 = wpExampleState;
-
-
 
 		}
 		break;
