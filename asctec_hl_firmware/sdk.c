@@ -127,6 +127,10 @@ PacketInfo *packetSubscription;
 HLI_CONFIG hli_config;
 PacketInfo *packetConfig;
 
+
+static unsigned char wpExampleState=0;
+static double originLat,originLon;
+
 // ######################################################################################
 
 void sdkInit(void)
@@ -305,6 +309,70 @@ void SDK_mainloop(void)
       }
     }
 
+
+
+
+
+
+    //accept the waypoints from on-board computer
+    //added on Feb. 21, 2017
+    {
+    	int i_test=1;
+    	if (i_test==1)
+    	{
+    				double lat,lon;
+    				//lever was set to "ON" state -> calculate and send first waypoint and switch state
+
+    				//fill waypoint structure
+    				wpToLL.max_speed=100;
+    				wpToLL.pos_acc=3000; 	//3m accuracy
+    				wpToLL.time=400; 		//4 seconds waiting time at each waypoint
+    				wpToLL.wp_activated=1;
+
+    				//see LL_HL_comm.h for WPPROP defines
+    				wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+    				//use current height and yaw
+    				wpToLL.yaw=extPositionCmd.heading; //use commanded yaw, 0-360000, 1000=1degree
+    				wpToLL.height=extPositionCmd.z; //use commanded height, mm
+
+//    				originLat=(double)GPS_Data.latitude/10000000.0;
+//    				originLon=(double)GPS_Data.longitude/10000000.0;
+
+    				//calculate a position 15m north of us
+    				xy2latlon(originLat,originLon,extPositionCmd.y,extPositionCmd.x,&lat,&lon);
+
+    				wpToLL.X=lon*10000000;
+    				wpToLL.Y=lat*10000000;
+
+    				//calc chksum
+    				wpToLL.chksum = 0xAAAA
+    										+ wpToLL.yaw
+    										+ wpToLL.height
+    										+ wpToLL.time
+    										+ wpToLL.X
+    										+ wpToLL.Y
+    										+ wpToLL.max_speed
+    										+ wpToLL.pos_acc
+    										+ wpToLL.properties
+    										+ wpToLL.wp_activated;
+
+    				//send waypoint
+    				wpCtrlAckTrigger=0;
+    				wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+    				wpCtrlWpCmdUpdated=1;
+
+    				//wpExampleState=2;
+
+    	}
+
+    }
+
+
+
+
+
+
   }
 
   // handle parameter packet
@@ -396,6 +464,10 @@ void SDK_mainloop(void)
   SDK_EXAMPLE_gps_waypoint_control();
 
 
+
+
+
+
   //test only:
 
   //SDK_EXAMPLE_direct_individual_motor_commands();
@@ -411,7 +483,7 @@ void SDK_mainloop(void)
 
 
 
-
+/*
   short motorsRunning = LL_1khz_attitude_data.status2 & 0x1;
 
   if (motor_state == -1 || motor_state == 2)
@@ -500,7 +572,7 @@ void SDK_mainloop(void)
   // TODO: thrust limit in case something really goes wrong, may be removed
   if (WO_CTRL_Input.thrust > 4095)
     WO_CTRL_Input.thrust = 4095;
-
+*/
   // ------------------------------------------------------------------------
 
 
@@ -646,7 +718,7 @@ inline void sendStatus(void)
   //statusData.debug1 = extPositionCmd.heading;//uart0_min_rx_buffer;
 //  statusData.debug2 = uart0_min_tx_buffer;
 
-  statusData.state_estimation = hli_config.mode_state_estimation;
+  //statusData.state_estimation = hli_config.mode_state_estimation;
   statusData.position_control = hli_config.mode_position_control;
 
   statusData.rx_packets = UART_rxPacketCount;
@@ -764,8 +836,8 @@ inline void watchdog(void)
  */
 void SDK_EXAMPLE_gps_waypoint_control()
 {
-	static unsigned char wpExampleState=1;
-	static double originLat,originLon;
+//	static unsigned char wpExampleState=1;
+//	static double originLat,originLon;
 
 
 	WO_SDK.ctrl_mode=0x03;
@@ -773,20 +845,22 @@ void SDK_EXAMPLE_gps_waypoint_control()
 	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
 							//1: enable control by HL processor
 
-	statusData.debug1 = wpExampleState;
+//	statusData.debug1 = wpExampleState;
+
+	//statusData.debug1++;
 
 	switch (wpExampleState)
 	{
 		//prior to start, the lever on channel 7 has to be in "OFF" position
 		case 0:
-		//if (RO_RC_Data.channel[6]<1600)
+		if (RO_RC_Data.channel[6]<1600)
 			wpExampleState=1;
 		break;
 
 
 
 		case 1:
-	//	if (RO_RC_Data.channel[6]>2400)
+		if (RO_RC_Data.channel[6]>2400)
 		{
 			double lat,lon;
 			//lever was set to "ON" state -> calculate and send first waypoint and switch state
@@ -839,9 +913,13 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			//wait until cmd is processed and sent to LL processor
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
+
+				statusData.debug1++;
+
 				//check if waypoint was reached and wait time is over
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
 				{
+
 					//new waypoint
 					double lat,lon;
 
@@ -887,15 +965,23 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					wpExampleState=0;
 
 
+//				else
+//					wpExampleState=0;
+
+
 			}
-//			if (RO_RC_Data.channel[6]<1600)
-//						wpExampleState=0;
+			if (RO_RC_Data.channel[6]<1600)
+						wpExampleState=0;
+
+//			else
+//								wpExampleState=0;
 		break;
 
 		case 3:
 			//wait until cmd is processed and sent to LL processor
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
+				statusData.debug1++;
 				//check if waypoint was reached and wait time is over
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
 				{
@@ -944,16 +1030,23 @@ void SDK_EXAMPLE_gps_waypoint_control()
 				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
 					wpExampleState=0;
 
+//				else
+//					wpExampleState=0;
+
 
 			}
-//			if (RO_RC_Data.channel[6]<1600)
-//						wpExampleState=0;
+			if (RO_RC_Data.channel[6]<1600)
+						wpExampleState=0;
+
+//			else
+//								wpExampleState=0;
 		break;
 
 		case 4:
 			//wait until cmd is processed and sent to LL processor
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
+				statusData.debug1++;
 				//check if waypoint was reached and wait time is over
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
 				{
@@ -999,10 +1092,16 @@ void SDK_EXAMPLE_gps_waypoint_control()
 				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
 					wpExampleState=0;
 
+//				else
+//									wpExampleState=0;
+
 
 			}
-//			if (RO_RC_Data.channel[6]<1600)
-//						wpExampleState=0;
+			if (RO_RC_Data.channel[6]<1600)
+						wpExampleState=0;
+
+//			else
+//								wpExampleState=0;
 		break;
 
 		default:
