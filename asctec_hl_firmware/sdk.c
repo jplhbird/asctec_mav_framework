@@ -764,7 +764,7 @@ inline void watchdog(void)
  */
 void SDK_EXAMPLE_gps_waypoint_control()
 {
-	static unsigned char wpExampleState=0;
+	static unsigned char wpExampleState=1;
 	static double originLat,originLon;
 
 
@@ -776,13 +776,13 @@ void SDK_EXAMPLE_gps_waypoint_control()
 	switch (wpExampleState)
 	{
 		//prior to start, the lever on channel 7 has to be in "OFF" position
-		case 0:
-		if (RO_RC_Data.channel[6]<1600)
-			wpExampleState=1;
-		break;
+//		case 0:
+//		if (RO_RC_Data.channel[6]<1600)
+//			wpExampleState=1;
+//		break;
 
 		case 1:
-		if (RO_RC_Data.channel[6]>2400)
+	//	if (RO_RC_Data.channel[6]>2400)
 		{
 			double lat,lon;
 			//lever was set to "ON" state -> calculate and send first waypoint and switch state
@@ -828,7 +828,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 			wpExampleState=2;
 
-			statusData.debug1++;
+			statusData.debug1 = wpExampleState;
 
 
 
@@ -888,8 +888,8 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 
 			}
-			if (RO_RC_Data.channel[6]<1600)
-						wpExampleState=0;
+//			if (RO_RC_Data.channel[6]<1600)
+//						wpExampleState=0;
 		break;
 
 		case 3:
@@ -946,8 +946,8 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 
 			}
-			if (RO_RC_Data.channel[6]<1600)
-						wpExampleState=0;
+//			if (RO_RC_Data.channel[6]<1600)
+//						wpExampleState=0;
 		break;
 
 		case 4:
@@ -1001,8 +1001,8 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 
 			}
-			if (RO_RC_Data.channel[6]<1600)
-						wpExampleState=0;
+//			if (RO_RC_Data.channel[6]<1600)
+//						wpExampleState=0;
 		break;
 
 		default:
