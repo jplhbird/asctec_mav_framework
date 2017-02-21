@@ -364,6 +364,8 @@ void SDK_mainloop(void)
 
     				//wpExampleState=2;
 
+    				statusData.debug1=100;
+
     	}
 
     }
@@ -906,6 +908,8 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 			wpExampleState=2;
 
+			statusData.debug1=10;
+
 		}
 		break;
 
@@ -914,7 +918,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
 
-				statusData.debug1++;
+				statusData.debug1=20;
 
 				//check if waypoint was reached and wait time is over
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
@@ -981,7 +985,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			//wait until cmd is processed and sent to LL processor
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
-				statusData.debug1++;
+				statusData.debug1=30;
 				//check if waypoint was reached and wait time is over
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
 				{
@@ -1046,7 +1050,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			//wait until cmd is processed and sent to LL processor
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
-				statusData.debug1++;
+				statusData.debug1=40;
 				//check if waypoint was reached and wait time is over
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
 				{
