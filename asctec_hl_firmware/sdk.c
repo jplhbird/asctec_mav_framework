@@ -220,10 +220,11 @@ void SDK_mainloop(void)
 {
   sdkCycleStartTime = T1TC;
 
-  WO_SDK.ctrl_mode = 0x02; // attitude and throttle control
-  //WO_SDK.disable_motor_onoff_by_stick = 0;
+  //WO_SDK.ctrl_mode = 0x02; // attitude and throttle control
+  WO_SDK.disable_motor_onoff_by_stick = 0;
 
   sdkLoops++;
+
 
   parseRxFifo();
 
@@ -384,9 +385,23 @@ void SDK_mainloop(void)
   // reads position reference from extPosition
   // reads position/velocity command from extPositionCmd
   // finally writes to WO_CTRL_Input. therefore, make sure to overwrite it after this call if you don't want to have its output
-  rt_OneStep();
+
+
+  //comment it Feb. 2017
+  // rt_OneStep();
 
   // --- write commands to LL ------------------------------------------------
+
+
+  SDK_EXAMPLE_gps_waypoint_control();
+
+
+  //test only:
+
+  //SDK_EXAMPLE_direct_individual_motor_commands();
+
+
+
 
   short motorsRunning = LL_1khz_attitude_data.status2 & 0x1;
 
@@ -397,7 +412,7 @@ void SDK_mainloop(void)
     if (extPositionValid > 0 && statusData.have_SSDK_parameters == 1 && hli_config.mode_position_control == HLI_MODE_POSCTRL_HL)
     {
       WO_CTRL_Input.ctrl = hli_config.position_control_axis_enable;
-      WO_SDK.ctrl_enabled = 1;
+      //WO_SDK.ctrl_enabled = 1;
       // limit yaw rate:
       if(WO_CTRL_Input.yaw > 1000)
         WO_CTRL_Input.yaw = 1000;
@@ -407,11 +422,14 @@ void SDK_mainloop(void)
 
     else if (cmdLLValid > 0 && (hli_config.mode_position_control == HLI_MODE_POSCTRL_LL || hli_config.mode_position_control == HLI_MODE_POSCTRL_OFF))
     {
-      writeCommand(cmdLL.x, -cmdLL.y, -cmdLL.yaw, cmdLL.z, hli_config.position_control_axis_enable, 1);
+    	//comment Feb. 2017
+      //writeCommand(cmdLL.x, -cmdLL.y, -cmdLL.yaw, cmdLL.z, hli_config.position_control_axis_enable, 1);
     }
     else
     {
-      writeCommand(0, 0, 0, 0, 0, 0);
+
+    	//comment Feb. 2017
+      //writeCommand(0, 0, 0, 0, 0, 0);
     }
   }
   // start / stop motors, allow commands max for 1.5 s
@@ -420,16 +438,21 @@ void SDK_mainloop(void)
     if (motor_state_count < 1500)
     {
       if (!motorsRunning)
-        writeCommand(0, 0, 2047, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1); // start/stop sequence, set ctrl to acc so that motors will be safely started
+      {
+    	  //comment Feb. 2017
+        //writeCommand(0, 0, 2047, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1); // start/stop sequence, set ctrl to acc so that motors will be safely started
+      }
       else if (motorsRunning)
       {
-        writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
+    	  //comment Feb. 2017
+        //writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
         motor_state = 2;
       }
     }
     else
     {
-      writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
+    	//comment Feb. 2017
+      //writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
       motor_state = -1;
     }
     motor_state_count++;
@@ -439,16 +462,21 @@ void SDK_mainloop(void)
     if (motor_state_count < 1500)
     {
       if (motorsRunning)
-        writeCommand(0, 0, 2047, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1); // start/stop sequence, set ctrl to acc so that motors will be safely shut down
+      {
+    	  //comment Feb. 2017
+        //writeCommand(0, 0, 2047, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1); // start/stop sequence, set ctrl to acc so that motors will be safely shut down
+      }
       else if (!motorsRunning)
       {
-        writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
+    	  //comment Feb. 2017
+        //writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
         motor_state = -1;
       }
     }
     else
     {
-      writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
+    	//comment Feb. 2017
+      //writeCommand(0, 0, 0, 0, HLI_YAW_BIT | HLI_THRUST_BIT, 1);
       motor_state = -1;
     }
     motor_state_count++;
@@ -456,7 +484,8 @@ void SDK_mainloop(void)
   else
   {
     // undefined state, disable everything
-    writeCommand(0, 0, 0, 0, 0, 0);
+	  //comment Feb. 2017
+    //writeCommand(0, 0, 0, 0, 0, 0);
   }
 
   // TODO: thrust limit in case something really goes wrong, may be removed
@@ -766,7 +795,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			originLon=(double)GPS_Data.longitude/10000000.0;
 
 			//calculate a position 15m north of us
-			xy2latlon(originLat,originLon,0.0,15.0,&lat,&lon);
+			xy2latlon(originLat,originLon,0.0,5.0,&lat,&lon);
 
 			wpToLL.X=lon*10000000;
 			wpToLL.Y=lat*10000000;
@@ -817,7 +846,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					wpToLL.height=IMU_CalcData.height; //use current height
 
 					//calculate a position 15m north and 15m east of origin
-					xy2latlon(originLat,originLon,15.0,15.0,&lat,&lon);
+					xy2latlon(originLat,originLon,5.0,5.0,&lat,&lon);
 
 					wpToLL.X=lon*10000000;
 					wpToLL.Y=lat*10000000;
@@ -874,7 +903,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					wpToLL.height=IMU_CalcData.height; //use current height
 
 					//calculate a position 15m east of origin
-					xy2latlon(originLat,originLon,15.0,0.0,&lat,&lon);
+					xy2latlon(originLat,originLon,5.0,0.0,&lat,&lon);
 
 					wpToLL.X=lon*10000000;
 					wpToLL.Y=lat*10000000;
@@ -968,6 +997,40 @@ void SDK_EXAMPLE_gps_waypoint_control()
 		break;
 	}
 
+}
+
+
+
+void SDK_EXAMPLE_direct_individual_motor_commands(void)
+{
+
+	WO_SDK.ctrl_mode=0x00;	//0x00: direct individual motor control: individual commands for motors 0..3
+							//0x01: direct motor control using standard output mapping: commands are interpreted as pitch, roll, yaw and thrust inputs; no attitude controller active
+							//0x02: attitude and throttle control: commands are input for standard attitude controller
+							//0x03: GPS waypoint control
+
+	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
+							//1: enable control by HL processor
+
+	WO_SDK.disable_motor_onoff_by_stick=0;
+
+	unsigned int i;
+
+	//scale throttle stick to [0..200] and map it to all motors
+	WO_Direct_Individual_Motor_Control.motor[0]=RO_ALL_Data.channel[2]/21;
+	WO_Direct_Individual_Motor_Control.motor[1]=RO_ALL_Data.channel[2]/21;
+	WO_Direct_Individual_Motor_Control.motor[2]=RO_ALL_Data.channel[2]/21;
+	WO_Direct_Individual_Motor_Control.motor[3]=RO_ALL_Data.channel[2]/21;
+	WO_Direct_Individual_Motor_Control.motor[4]=RO_ALL_Data.channel[2]/21;
+	WO_Direct_Individual_Motor_Control.motor[5]=RO_ALL_Data.channel[2]/21;
+
+	//make sure commands are never 0 so that motors will always keep spinning
+    //also make sure that commands stay within range
+    for(i=0;i<6;i++)
+    {
+    	if(!WO_Direct_Individual_Motor_Control.motor[i]) WO_Direct_Individual_Motor_Control.motor[i]=1;
+    	else if (WO_Direct_Individual_Motor_Control.motor[i]>200) WO_Direct_Individual_Motor_Control.motor[i]=200;
+    }
 }
 
 

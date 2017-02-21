@@ -116,7 +116,10 @@ void SDK_mainloop(void) //write your own code within this function
 	//SDK_EXAMPLE_direct_individual_motor_commands();
 	//SDK_EXAMPLE_direct_motor_commands_with_standard_output_mapping();
 	//SDK_EXAMPLE_attitude_commands();
-	//SDK_EXAMPLE_gps_waypoint_control();
+	SDK_EXAMPLE_gps_waypoint_control();
+
+
+
 
 	//example to turn motors on and off every 2 seconds
 	/*

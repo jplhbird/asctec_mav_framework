@@ -93,6 +93,10 @@ extern HLI_CONFIG hli_config;
 extern volatile int64_t timestamp;
 
 
+void SDK_EXAMPLE_gps_waypoint_control(void);
+void SDK_EXAMPLE_direct_individual_motor_commands(void);
+
+
 //--- general commands -----------------------------------------------------------------------------------------------------------------------------------------------
 struct WO_SDK_STRUCT {
 
