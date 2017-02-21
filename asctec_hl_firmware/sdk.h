@@ -80,6 +80,10 @@ inline void predictEkfState(void);
 /// assembles ekf state packet and sends it
 inline void sendEkfState(void);
 
+
+int SDK_EXAMPLE_turn_motors_on(void);
+int SDK_EXAMPLE_turn_motors_off(void);
+
 /// counts ssdk loops
 extern unsigned int sdkLoops;
 

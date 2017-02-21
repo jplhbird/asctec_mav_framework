@@ -401,6 +401,15 @@ void SDK_mainloop(void)
   //SDK_EXAMPLE_direct_individual_motor_commands();
 
 
+	//example to turn motors on and off every 2 seconds
+
+//	static int timer=0;
+//	if(++timer<1000) SDK_EXAMPLE_turn_motors_on();
+//	else if(timer<2000) SDK_EXAMPLE_turn_motors_off();
+//	else timer=0;
+
+
+
 
 
   short motorsRunning = LL_1khz_attitude_data.status2 & 0x1;
@@ -634,7 +643,7 @@ inline void sendStatus(void)
   else if (!(LL_1khz_attitude_data.status2 & 0x1))
     statusData.motors = -1;
 
-  statusData.debug1 = extPositionCmd.heading;//uart0_min_rx_buffer;
+  //statusData.debug1 = extPositionCmd.heading;//uart0_min_rx_buffer;
 //  statusData.debug2 = uart0_min_tx_buffer;
 
   statusData.state_estimation = hli_config.mode_state_estimation;
@@ -818,6 +827,10 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			wpCtrlWpCmdUpdated=1;
 
 			wpExampleState=2;
+
+			statusData.debug1++;
+
+
 
 		}
 		break;
@@ -1031,6 +1044,79 @@ void SDK_EXAMPLE_direct_individual_motor_commands(void)
     	if(!WO_Direct_Individual_Motor_Control.motor[i]) WO_Direct_Individual_Motor_Control.motor[i]=1;
     	else if (WO_Direct_Individual_Motor_Control.motor[i]>200) WO_Direct_Individual_Motor_Control.motor[i]=200;
     }
+}
+
+
+
+int SDK_EXAMPLE_turn_motors_on(void) //hold throttle stick down and yaw stick fully left to turn motors on
+{
+	static int timeout=0;
+
+	WO_SDK.ctrl_mode=0x02;	//0x00: direct individual motor control: individual commands for motors 0..3
+							//0x01: direct motor control using standard output mapping: commands are interpreted as pitch, roll, yaw and thrust inputs; no attitude controller active
+							//0x02: attitude and throttle control: commands are input for standard attitude controller
+							//0x03: GPS waypoint control
+
+	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
+							//1: enable control by HL processor
+
+	WO_SDK.disable_motor_onoff_by_stick=0; //make sure stick command is accepted
+
+	if(++timeout>=1000)
+	{
+		timeout=0;
+		return(1); //1 => start sequence completed => motors running => user can stop calling this function
+	}
+	else if(timeout>500) //neutral stick command for 500 ms
+	{
+		WO_CTRL_Input.ctrl=0x0C;	//0x0C: enable throttle control and yaw control
+		WO_CTRL_Input.thrust=0;	//use R/C throttle stick input /2 to control thrust (just for testing)
+		WO_CTRL_Input.yaw=0;
+		return(0);
+	}
+	else //hold stick command for 500 ms
+	{
+		WO_CTRL_Input.ctrl=0x0C;	//0x0C: enable throttle control and yaw control
+		WO_CTRL_Input.thrust=0;	//use R/C throttle stick input /2 to control thrust (just for testing)
+		WO_CTRL_Input.yaw=-2047;
+		return(0);
+	}
+
+}
+
+int SDK_EXAMPLE_turn_motors_off(void) //hold throttle stick down and yaw stick fully right to turn motors off
+{
+	static int timeout=0;
+
+	WO_SDK.ctrl_mode=0x02;	//0x00: direct individual motor control: individual commands for motors 0..3
+							//0x01: direct motor control using standard output mapping: commands are interpreted as pitch, roll, yaw and thrust inputs; no attitude controller active
+							//0x02: attitude and throttle control: commands are input for standard attitude controller
+							//0x03: GPS waypoint control
+
+	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
+							//1: enable control by HL processor
+
+	WO_SDK.disable_motor_onoff_by_stick=0; //make sure stick command is accepted
+
+	if(++timeout>=1000)
+	{
+		timeout=0;
+		return(1); //1 => stop sequence completed => motors turned off => user can stop calling this function
+	}
+	else if(timeout>500) //neutral stick command for 500 ms
+	{
+		WO_CTRL_Input.ctrl=0x0C;	//0x0C: enable throttle control and yaw control
+		WO_CTRL_Input.thrust=0;	//use R/C throttle stick input /2 to control thrust (just for testing)
+		WO_CTRL_Input.yaw=0;
+		return(0);
+	}
+	else //hold stick command for 500 ms
+	{
+		WO_CTRL_Input.ctrl=0x0C;	//0x0C: enable throttle control and yaw control
+		WO_CTRL_Input.thrust=0;	//use R/C throttle stick input /2 to control thrust (just for testing)
+		WO_CTRL_Input.yaw=2047;
+		return(0);
+	}
 }
 
 
