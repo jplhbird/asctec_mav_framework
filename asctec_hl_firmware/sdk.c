@@ -325,9 +325,7 @@ void SDK_mainloop(void)
       }
     }
 
-
-
-
+    //added on Feb. 23, 2017
     //begin
     if ((extPositionCmd.y==-9999) &  (extPositionCmd.x==9999) &  (extPositionCmd.z==-9999))
     {
@@ -365,9 +363,6 @@ void SDK_mainloop(void)
     {
     	SDK_series_waypoint_control();
     }
-
-
-
 
 
 
