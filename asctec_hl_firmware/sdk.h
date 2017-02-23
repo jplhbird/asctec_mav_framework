@@ -98,6 +98,7 @@ extern volatile int64_t timestamp;
 
 
 void SDK_EXAMPLE_gps_waypoint_control(void);
+void SDK_series_waypoint_control(void);
 void SDK_EXAMPLE_direct_individual_motor_commands(void);
 
 

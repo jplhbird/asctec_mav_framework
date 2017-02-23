@@ -131,6 +131,22 @@ PacketInfo *packetConfig;
 static unsigned char wpExampleState=0;
 static double originLat,originLon;
 
+//store the waypoints command from onboard computer:
+static int waypoint_cmd[4][100];
+static int no_tatal=0;
+static int no_waypoint=0;
+static int flag_waypoint_begin=0;
+static int flag_waypoint_complete=0;
+static int flag_enable=0;
+
+//excute the waypoints commad:
+static int i_current=0;
+static int wpState=0;
+
+
+
+
+
 // ######################################################################################
 
 void sdkInit(void)
@@ -312,12 +328,57 @@ void SDK_mainloop(void)
 
 
 
+    //begin
+    if ((extPositionCmd.y==-9999) &  (extPositionCmd.x==9999) &  (extPositionCmd.z==-9999))
+    {
+    	no_waypoint=-1;
+    	flag_waypoint_begin=1;
+    	flag_enable=0;
+    }
+     //end
+    else if ((extPositionCmd.y==-99999) &  (extPositionCmd.x==99999) &  (extPositionCmd.z==-99999))
+    {
+    	flag_waypoint_complete=1;
+    	flag_waypoint_begin=0;
+
+    }
+    else if(flag_waypoint_begin==1)
+    {
+    	waypoint_cmd[0][no_waypoint]=extPositionCmd.x;
+    	waypoint_cmd[1][no_waypoint]=extPositionCmd.y;
+    	waypoint_cmd[2][no_waypoint]=extPositionCmd.z;
+    	waypoint_cmd[3][no_waypoint]=extPositionCmd.heading;
+    }
+    if(flag_waypoint_complete==1)
+    {
+    	flag_waypoint_complete=0;
+    	no_tatal=no_waypoint;
+    	no_waypoint=0;
+    	flag_enable=1;
+    	wpState=0;
+    }
+
+    no_waypoint++;
+
+
+    if(flag_enable==1)
+    {
+    	SDK_series_waypoint_control();
+    }
+
+
+
+
 
 
     //accept the waypoints from on-board computer
     //added on Feb. 21, 2017
     {
-    	int i_test=1;
+    	WO_SDK.ctrl_mode=0x03;
+    	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
+    							//1: enable control by HL processor
+
+    	int i_test=0;
     	if (i_test==1)
     	{
     				double lat,lon;
@@ -334,7 +395,7 @@ void SDK_mainloop(void)
 
     				//use current height and yaw
     				wpToLL.yaw=extPositionCmd.heading; //use commanded yaw, 0-360000, 1000=1degree
-    				wpToLL.height=extPositionCmd.z; //use commanded height, mm
+    				wpToLL.height= -extPositionCmd.z; //use commanded height, mm
 
 //    				originLat=(double)GPS_Data.latitude/10000000.0;
 //    				originLon=(double)GPS_Data.longitude/10000000.0;
@@ -464,10 +525,6 @@ void SDK_mainloop(void)
 
 
   SDK_EXAMPLE_gps_waypoint_control();
-
-
-
-
 
 
   //test only:
@@ -963,10 +1020,16 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					wpCtrlWpCmdUpdated=1;
 
 					wpExampleState=3;
+
+
+					statusData.debug1=21;
 				}
 
 				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+				{
 					wpExampleState=0;
+					statusData.debug1=22;
+				}
 
 
 //				else
@@ -1029,10 +1092,16 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					wpCtrlWpCmdUpdated=1;
 
 					wpExampleState=4;
+
+					statusData.debug1=31;
 				}
 
 				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+				{
 					wpExampleState=0;
+
+					statusData.debug1=32;
+				}
 
 //				else
 //					wpExampleState=0;
@@ -1040,7 +1109,11 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 			}
 			if (RO_RC_Data.channel[6]<1600)
+			{
 						wpExampleState=0;
+
+						statusData.debug1=33;
+			}
 
 //			else
 //								wpExampleState=0;
@@ -1091,10 +1164,18 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					wpCtrlWpCmdUpdated=1;
 
 					wpExampleState=0;
+
+					statusData.debug1=41;
+
 				}
 
 				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+				{
 					wpExampleState=0;
+
+					statusData.debug1=42;
+
+				}
 
 //				else
 //									wpExampleState=0;
@@ -1102,7 +1183,11 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 			}
 			if (RO_RC_Data.channel[6]<1600)
+
+			{
 						wpExampleState=0;
+						statusData.debug1=43;
+			}
 
 //			else
 //								wpExampleState=0;
@@ -1110,6 +1195,171 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 		default:
 			wpExampleState=0;
+		break;
+	}
+
+}
+
+
+
+void SDK_series_waypoint_control()
+{
+//	static unsigned char wpExampleState=1;
+//	static double originLat,originLon;
+
+
+	WO_SDK.ctrl_mode=0x03;
+
+	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
+							//1: enable control by HL processor
+
+//	statusData.debug1 = wpExampleState;
+
+	//statusData.debug1++;
+
+	switch (wpState)
+	{
+		//prior to start, the lever on channel 7 has to be in "OFF" position
+		case 0:
+		{
+			double lat,lon;
+			double x_c, y_c;
+
+			x_c=waypoint_cmd[0][0]/1000.0; //unit:m
+			y_c=waypoint_cmd[1][0]/1000.0; //unit:m
+
+			//fill waypoint structure
+			wpToLL.max_speed=100;
+			wpToLL.pos_acc=3000; 	//3m accuracy
+			wpToLL.time=400; 		//4 seconds waiting time at each waypoint
+			wpToLL.wp_activated=1;
+
+			//see LL_HL_comm.h for WPPROP defines
+			wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+			//use commanded height and yaw
+			wpToLL.yaw=waypoint_cmd[3][0]; //use commanded yaw, 0-360000, 1000=1degree
+			wpToLL.height= -waypoint_cmd[2][0]; //use commanded height, mm
+
+			//calculate a position according to the received commands
+			xy2latlon(originLat,originLon,y_c,x_c,&lat,&lon);
+
+			wpToLL.X=lon*10000000;
+			wpToLL.Y=lat*10000000;
+
+			//calc chksum
+			wpToLL.chksum = 0xAAAA
+									+ wpToLL.yaw
+									+ wpToLL.height
+									+ wpToLL.time
+									+ wpToLL.X
+									+ wpToLL.Y
+									+ wpToLL.max_speed
+									+ wpToLL.pos_acc
+									+ wpToLL.properties
+									+ wpToLL.wp_activated;
+
+			//send waypoint
+			wpCtrlAckTrigger=0;
+			wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+			wpCtrlWpCmdUpdated=1;
+
+			wpExampleState=2;
+
+			statusData.debug1=1000;
+
+		}
+			wpState=1;
+			i_current=1;
+		break;
+
+		case 1:
+		{
+			//wait until cmd is processed and sent to LL processor
+			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
+			{
+
+				//show the status, test only
+				statusData.debug1=2000;
+
+				//check if waypoint was reached and wait time is over
+				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
+				{
+
+					//new waypoint
+					double lat,lon;
+					double x_c, y_c;
+
+					x_c=waypoint_cmd[0][i_current]/1000.0; //unit:m
+					y_c=waypoint_cmd[1][i_current]/1000.0; //unit:m
+
+					//fill waypoint structure
+					wpToLL.max_speed=100;
+					wpToLL.pos_acc=3000; //3m accuracy
+					wpToLL.time=400; //4 seconds wait time
+					wpToLL.wp_activated=1;
+
+					//see LL_HL_comm.h for WPPROP defines
+					wpToLL.properties=WPPROP_ABSCOORDS|WPPROP_AUTOMATICGOTO|WPPROP_HEIGHTENABLED|WPPROP_YAWENABLED;
+
+					//use commanded height and yaw
+					wpToLL.yaw=waypoint_cmd[3][i_current]; //use commanded yaw, 0-360000, 1000=1degree
+					wpToLL.height= -waypoint_cmd[2][i_current]; //use commanded height, mm
+
+					//calculate a position according to the received commands
+					xy2latlon(originLat,originLon,y_c,x_c,&lat,&lon);
+
+					wpToLL.X=lon*10000000;
+					wpToLL.Y=lat*10000000;
+
+					//calc chksum
+					wpToLL.chksum = 0xAAAA
+											+ wpToLL.yaw
+											+ wpToLL.height
+											+ wpToLL.time
+											+ wpToLL.X
+											+ wpToLL.Y
+											+ wpToLL.max_speed
+											+ wpToLL.pos_acc
+											+ wpToLL.properties
+											+ wpToLL.wp_activated;
+					//send waypoint
+					wpCtrlAckTrigger=0;
+					wpCtrlWpCmd=WP_CMD_SINGLE_WP;
+					wpCtrlWpCmdUpdated=1;
+
+					if(i_current<no_tatal)
+					{
+						i_current++;
+						statusData.debug1=6000;
+
+					}
+					else if(i_current==no_tatal)
+					{
+						//finish
+						wpState=3;
+						flag_enable=0;
+						statusData.debug1=5000;
+					}
+
+
+					statusData.debug1=3000;
+				}
+
+				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
+				{
+					//quite
+					wpState=4;
+					flag_enable=0;
+					statusData.debug1=4000;
+				}
+
+			}
+
+			statusData.debug1=7000;
+
+
+		}
 		break;
 	}
 
