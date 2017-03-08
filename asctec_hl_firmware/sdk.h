@@ -102,6 +102,10 @@ void SDK_series_waypoint_control(void);
 void SDK_EXAMPLE_direct_individual_motor_commands(void);
 
 
+/// calculate the virtual GPS when indoors
+inline void virtualgps(void);
+
+
 //--- general commands -----------------------------------------------------------------------------------------------------------------------------------------------
 struct WO_SDK_STRUCT {
 
@@ -376,5 +380,11 @@ extern unsigned short wpCtrlNavStatus; //check navigation status with WP_NAVSTAT
 #define WP_NAVSTAT_PILOT_ABORT			0x08	//waypoint navigation aborted by safety pilot (any stick was moved)
 
 extern unsigned short wpCtrlDistToWp; //current distance to the current waypoint in dm (=10 cm)
+
+
+extern int indoor;
+//indoor or outdoor
+//1: indoor, SLMA module provide information of position and velocity,
+//0: outdoor GPS environment
 
 #endif /*SDK_*/

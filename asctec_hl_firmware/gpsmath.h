@@ -61,6 +61,8 @@ struct GPS_DATA
 };
 extern struct GPS_DATA GPS_Data;
 
+extern struct GPS_DATA GPS_Data_indoor; //virtual GPS from SLAM
+
 struct GPS_TIME 
 {
 	unsigned int time_of_week;	//[ms]

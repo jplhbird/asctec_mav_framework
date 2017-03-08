@@ -130,18 +130,29 @@ PacketInfo *packetConfig;
 
 static unsigned char wpExampleState=0;
 static double originLat,originLon;
+static int originheight=0;
 
 //store the waypoints command from onboard computer:
 static int waypoint_cmd[4][100];
 static int no_tatal=0;
-static int no_waypoint=0;
-static int flag_waypoint_begin=0;
+int no_waypoint=0;
+int flag_waypoint_begin=0;
 static int flag_waypoint_complete=0;
 static int flag_enable=0;
 
 //excute the waypoints commad:
 static int i_current=0;
 static int wpState=0;
+
+
+static double originLat_indoor=0;
+static double originLon_indoor=0; //the virtual latitude and lonitude, indoor
+static double originheight_indoor=0; //the virtual height, indoor
+
+int indoor=0;
+//indoor or outdoor
+//1: indoor, SLMA module provide information of position and velocity,
+//0: outdoor GPS environment
 
 
 
@@ -327,17 +338,36 @@ void SDK_mainloop(void)
 
     //added on Feb. 23, 2017
     //begin
-    if ((extPositionCmd.y==-9999) &  (extPositionCmd.x==9999) &  (extPositionCmd.z==-9999))
+    if ((extPositionCmd.y==-999999) &  (extPositionCmd.x==999999) &  (extPositionCmd.z==-999999))
     {
     	no_waypoint=-1;
     	flag_waypoint_begin=1;
     	flag_enable=0;
+
+    	no_waypoint++;
+
+    	//statusData.debug2++;
+
     }
      //end
     else if ((extPositionCmd.y==-99999) &  (extPositionCmd.x==99999) &  (extPositionCmd.z==-99999))
     {
-    	flag_waypoint_complete=1;
-    	flag_waypoint_begin=0;
+    	//flag_waypoint_complete=1;
+
+    	if(flag_waypoint_begin==1)
+    	{
+			flag_waypoint_begin=0;
+
+			//flag_waypoint_complete=0;
+			no_tatal=no_waypoint-1;
+			no_waypoint=0;
+			flag_enable=1;
+			wpState=0;
+
+			statusData.debug2 = statusData.debug2 + no_tatal;
+    	}
+
+    	//statusData.debug2++;
 
     }
     else if(flag_waypoint_begin==1)
@@ -346,23 +376,26 @@ void SDK_mainloop(void)
     	waypoint_cmd[1][no_waypoint]=extPositionCmd.y;
     	waypoint_cmd[2][no_waypoint]=extPositionCmd.z;
     	waypoint_cmd[3][no_waypoint]=extPositionCmd.heading;
-    }
-    if(flag_waypoint_complete==1)
-    {
-    	flag_waypoint_complete=0;
-    	no_tatal=no_waypoint;
-    	no_waypoint=0;
-    	flag_enable=1;
-    	wpState=0;
-    }
 
-    no_waypoint++;
+    	no_waypoint++;
 
-
-    if(flag_enable==1)
-    {
-    	SDK_series_waypoint_control();
+    	//statusData.debug2++;
     }
+//    if(flag_waypoint_complete==1)
+//    {
+//    	flag_waypoint_complete=0;
+//    	no_tatal=no_waypoint;
+//    	no_waypoint=0;
+//    	flag_enable=1;
+//    	wpState=0;
+//    	//statusData.debug2 = no_tatal;
+//    }
+
+  //  no_waypoint++;
+
+
+
+
 
 
 
@@ -426,12 +459,19 @@ void SDK_mainloop(void)
 
     }
 
-
-
-
-
-
   }
+
+
+  //detect the flag to determine if transmit the data
+  if(flag_enable==1)
+  {
+  	SDK_series_waypoint_control();
+  }
+
+
+
+
+
 
   // handle parameter packet
   if (packetSSDKParams->updated == 1)
@@ -490,6 +530,8 @@ void SDK_mainloop(void)
     default:
       extPositionValid = 0;
   }
+
+  virtualgps();
 
   // dekf initialize state machine
   // sets the acc/height/gps switch to 0 for 10 loops so that refmodel gets reset to the new state
@@ -737,18 +779,38 @@ inline void sendGpsData(void)
   gpsData.timestamp = timestamp;
   //	gpsData.latitude = LL_1khz_attitude_data.latitude_best_estimate;
   //	gpsData.longitude = LL_1khz_attitude_data.longitude_best_estimate;
-  gpsData.latitude = GPS_Data.latitude;
-  gpsData.longitude = GPS_Data.longitude;
-  gpsData.heading = LL_1khz_attitude_data.angle_yaw;
-  gpsData.height = GPS_Data.height;
-  gpsData.pressure_height = LL_1khz_attitude_data.height;
-  gpsData.speedX = GPS_Data.speed_x;
-  gpsData.speedY = GPS_Data.speed_y;
-  gpsData.horizontalAccuracy = GPS_Data.horizontal_accuracy;
-  gpsData.verticalAccuracy = GPS_Data.horizontal_accuracy;
-  gpsData.speedAccuracy = GPS_Data.speed_accuracy;
-  gpsData.numSatellites = GPS_Data.numSV;
-  gpsData.status = GPS_Data.status;
+
+  if(indoor==1)
+  {
+	  gpsData.latitude = GPS_Data_indoor.latitude;
+	  gpsData.longitude = GPS_Data_indoor.longitude;
+	  gpsData.heading = LL_1khz_attitude_data.angle_yaw;
+	  gpsData.height = GPS_Data_indoor.height;
+	  gpsData.pressure_height = LL_1khz_attitude_data.height;
+	  gpsData.speedX = GPS_Data_indoor.speed_x;
+	  gpsData.speedY = GPS_Data_indoor.speed_y;
+	  gpsData.horizontalAccuracy = GPS_Data_indoor.horizontal_accuracy;
+	  gpsData.verticalAccuracy = GPS_Data_indoor.horizontal_accuracy;
+	  gpsData.speedAccuracy = GPS_Data_indoor.speed_accuracy;
+	  gpsData.numSatellites = GPS_Data_indoor.numSV;
+	  gpsData.status = GPS_Data_indoor.status;
+
+  }
+  else
+  {
+	  gpsData.latitude = GPS_Data.latitude;
+	  gpsData.longitude = GPS_Data.longitude;
+	  gpsData.heading = LL_1khz_attitude_data.angle_yaw;
+	  gpsData.height = GPS_Data.height;
+	  gpsData.pressure_height = LL_1khz_attitude_data.height;
+	  gpsData.speedX = GPS_Data.speed_x;
+	  gpsData.speedY = GPS_Data.speed_y;
+	  gpsData.horizontalAccuracy = GPS_Data.horizontal_accuracy;
+	  gpsData.verticalAccuracy = GPS_Data.horizontal_accuracy;
+	  gpsData.speedAccuracy = GPS_Data.speed_accuracy;
+	  gpsData.numSatellites = GPS_Data.numSV;
+	  gpsData.status = GPS_Data.status;
+  }
 
   writePacket2Ringbuffer(HLI_PACKET_ID_GPS, (unsigned char*)&gpsData, sizeof(gpsData));
 }
@@ -934,6 +996,8 @@ void SDK_EXAMPLE_gps_waypoint_control()
 
 			originLat=(double)GPS_Data.latitude/10000000.0;
 			originLon=(double)GPS_Data.longitude/10000000.0;
+
+			originheight=IMU_CalcData.height; //use current height
 
 			//calculate a position 15m north of us
 			xy2latlon(originLat,originLon,0.0,5.0,&lat,&lon);
@@ -1208,8 +1272,7 @@ void SDK_series_waypoint_control()
 	WO_SDK.ctrl_enabled=1;  //0: disable control by HL processor
 							//1: enable control by HL processor
 
-//	statusData.debug1 = wpExampleState;
-
+	//statusData.debug1 = wpState;
 	//statusData.debug1++;
 
 	switch (wpState)
@@ -1220,8 +1283,8 @@ void SDK_series_waypoint_control()
 			double lat,lon;
 			double x_c, y_c;
 
-			x_c=waypoint_cmd[0][0]/1000.0; //unit:m
-			y_c=waypoint_cmd[1][0]/1000.0; //unit:m
+			x_c=(double)waypoint_cmd[0][0]/1000.0; //unit:m
+			y_c=(double)waypoint_cmd[1][0]/1000.0; //unit:m
 
 			//fill waypoint structure
 			wpToLL.max_speed=100;
@@ -1234,7 +1297,9 @@ void SDK_series_waypoint_control()
 
 			//use commanded height and yaw
 			wpToLL.yaw=waypoint_cmd[3][0]; //use commanded yaw, 0-360000, 1000=1degree
-			wpToLL.height= -waypoint_cmd[2][0]; //use commanded height, mm
+			wpToLL.height= -waypoint_cmd[2][0]+originheight; //use commanded height, mm
+
+			//wpToLL.height=IMU_CalcData.height; //use current height
 
 			//calculate a position according to the received commands
 			xy2latlon(originLat,originLon,y_c,x_c,&lat,&lon);
@@ -1259,20 +1324,24 @@ void SDK_series_waypoint_control()
 			wpCtrlWpCmd=WP_CMD_SINGLE_WP;
 			wpCtrlWpCmdUpdated=1;
 
-			wpExampleState=2;
-
 			statusData.debug1=1000;
+			//statusData.debug1++;
 
-		}
+
 			wpState=1;
 			i_current=1;
+		}
 		break;
 
 		case 1:
 		{
+			statusData.debug1=7000;
+
 			//wait until cmd is processed and sent to LL processor
 			if ((wpCtrlWpCmdUpdated==0) && (wpCtrlAckTrigger))
 			{
+
+				//statusData.debug1=7000;
 
 				//show the status, test only
 				statusData.debug1=2000;
@@ -1281,12 +1350,14 @@ void SDK_series_waypoint_control()
 				if (wpCtrlNavStatus&(WP_NAVSTAT_REACHED_POS_TIME))
 				{
 
+					statusData.debug1=3000;
+
 					//new waypoint
 					double lat,lon;
 					double x_c, y_c;
 
-					x_c=waypoint_cmd[0][i_current]/1000.0; //unit:m
-					y_c=waypoint_cmd[1][i_current]/1000.0; //unit:m
+					x_c=(double)waypoint_cmd[0][i_current]/1000.0; //unit:m
+					y_c=(double)waypoint_cmd[1][i_current]/1000.0; //unit:m
 
 					//fill waypoint structure
 					wpToLL.max_speed=100;
@@ -1299,7 +1370,9 @@ void SDK_series_waypoint_control()
 
 					//use commanded height and yaw
 					wpToLL.yaw=waypoint_cmd[3][i_current]; //use commanded yaw, 0-360000, 1000=1degree
-					wpToLL.height= -waypoint_cmd[2][i_current]; //use commanded height, mm
+					wpToLL.height= -waypoint_cmd[2][i_current]+originheight; //use commanded height, mm
+
+					//wpToLL.height=IMU_CalcData.height; //use current height
 
 					//calculate a position according to the received commands
 					xy2latlon(originLat,originLon,y_c,x_c,&lat,&lon);
@@ -1337,23 +1410,17 @@ void SDK_series_waypoint_control()
 						statusData.debug1=5000;
 					}
 
-
-					statusData.debug1=3000;
 				}
 
 				if (wpCtrlNavStatus&WP_NAVSTAT_PILOT_ABORT)
 				{
-					//quite
+					//quit
 					wpState=4;
 					flag_enable=0;
 					statusData.debug1=4000;
 				}
 
 			}
-
-			statusData.debug1=7000;
-
-
 		}
 		break;
 	}
@@ -1467,7 +1534,106 @@ int SDK_EXAMPLE_turn_motors_off(void) //hold throttle stick down and yaw stick f
 	}
 }
 
+void virtualgps(void)
+{
+	//int indoor=1;
+	//indoor or outdoor
+	//1: indoor, SLMA module provide information of position and velocity,
+	//0: outdoor GPS environment
+	if(indoor==1)
+	{
+//		struct GPS_DATA
+//		{
+//		//latitude/longitude in deg * 10^7
+//			int latitude;
+//			int longitude;
+//		//GPS height in mm
+//			int height;
+//		//speed in x (E/W) and y(N/S) in mm/s
+//			int speed_x;
+//			int speed_y;
+//		//GPS heading in deg * 1000
+//			int heading;
+//
+//		//accuracy estimates in mm and mm/s
+//			unsigned int horizontal_accuracy;
+//			unsigned int vertical_accuracy;
+//			unsigned int speed_accuracy;
+//
+//		//number of satellite vehicles used in NAV solution
+//			unsigned int numSV;
+//
+//		// GPS status information; Bit7...Bit3: 0 Bit 2: longitude direction Bit1: latitude direction Bit 0: GPS lock
+//			int status;
+//		};
+		GPS_Data_indoor.latitude=1;
+		GPS_Data_indoor.longitude=1;
 
+//		struct __attribute__((packed)) EXT_POSITION
+//		{
+//		  /** Struct to send the current postion to the HL controller. In normal operation, only x, y, z, yaw have to be provided.
+//		   * When bitfield is set to EXT_POSITION_BYPASS_FILTER, the state estimator is bypassed and velocity MUST be provided.
+//		   * This is useful, if you have your own state estimation and just want to use the position controller.
+//		   * qualXX is currently "binary":set the value to greater than 30 if your estimate is valid. For lower values, the last valid position will be hold.
+//		   * coordinate system: ENU
+//		   * x: front
+//		   * y: left
+//		   * z: up
+//		   * yaw: ccw when viewed from top
+//		   */
+//
+//		  int x; ///< X-Position in mm
+//		  int y; ///< Y-Position in mm
+//		  int z; ///< Z-Position in mm
+//		  int heading; ///< heading in 1/1000 degree. 0..360000
+//		  short vX; ///< speed in X direction in mm/s
+//		  short vY; ///< speed in Y direction in mm/s
+//		  short vZ; ///< speed in Z direction in mm/s
+//		  unsigned short bitfield; //
+//		  unsigned char qualX; ///< Quality of X measurement. 0: poor; 100: excellent
+//		  unsigned char qualY; ///< Quality of Y measurement. 0: poor; 100: excellent
+//		  unsigned char qualZ; ///< Quality of Z measurement. 0: poor; 100: excellent
+//		  unsigned char qualVx; ///< Quality of X speed measurement. 0: poor; 100: excellent
+//		  unsigned char qualVy; ///< Quality of y speed measurement. 0: poor; 100: excellent
+//		  unsigned char qualVz; ///< Quality of Z speed measurement. 0: poor; 100: excellent
+//		  unsigned char count;
+//		};
+
+		float xc,yc; //NED frame, unit: m
+		double lat,lon; //lat,lon: current GPS measurement
+		xc=(double)extPosition.x/1000.0; //NED frame, unit: m
+		yc=(double)extPosition.y/1000.0; //NED frame, unit: m
+
+		//calculate the lat and lon from NED coordinates:
+		xy2latlon(originLat_indoor,originLon_indoor,yc,xc,&lat,&lon);  //the log and lon unit: degree
+
+		GPS_Data_indoor.latitude=lat*10000000;
+		GPS_Data_indoor.longitude=lon*10000000;
+
+		double height;
+
+		height=originheight_indoor-(double)extPosition.z/1000.0; //unit: m
+
+		GPS_Data_indoor.height=height*1000; //unit: mm
+
+		GPS_Data_indoor.numSV=7;
+
+		//		//speed in x (E/W) and y(N/S) in mm/s
+		GPS_Data_indoor.speed_x=extPosition.vY;
+		GPS_Data_indoor.speed_y=extPosition.vX;
+		GPS_Data_indoor.heading=extPosition.heading;
+		//		//GPS heading in deg * 1000
+		//			int heading;
+
+
+		//accuracy estimates in mm and mm/s
+		GPS_Data_indoor.horizontal_accuracy=0.1;
+		GPS_Data_indoor.vertical_accuracy=0.1;
+		GPS_Data_indoor.speed_accuracy=0.1;
+
+	}
+
+}
 
 
 

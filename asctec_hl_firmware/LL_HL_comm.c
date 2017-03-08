@@ -218,7 +218,7 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 						LL_1khz_control_input.direct_motor_control[6]=wpToLL.yaw>>16;
 						LL_1khz_control_input.direct_motor_control[7]=wpToLL.yaw>>24;
 
-						statusData.debug2++;
+						//statusData.debug2++;
 
 						wpCtrlWpCmdUpdated++;
 					}else if (wpCtrlWpCmdUpdated==2)
@@ -241,7 +241,7 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 						wpCtrlWpCmdUpdated=0;
 						wpCtrlNavStatus=0;
 
-						statusData.debug2++;
+						//statusData.debug2++;
 
 					}
 				}else
