@@ -129,13 +129,17 @@ int	main (void) {
   {
       if(mainloop_trigger)
       {
-     	if(GPS_timeout<ControllerCyclesPerSecond) GPS_timeout++;
-	  	else if(GPS_timeout==ControllerCyclesPerSecond)
-	  	{
-  	 		GPS_timeout=ControllerCyclesPerSecond+1;
-	  		GPS_Data.status=0;
-	  		GPS_Data.numSV=0;
-	  	}
+
+    	 if(indoor!=1)
+    	 {
+			if(GPS_timeout<ControllerCyclesPerSecond) GPS_timeout++;
+			else if(GPS_timeout==ControllerCyclesPerSecond)
+			{
+				GPS_timeout=ControllerCyclesPerSecond+1;
+				GPS_Data.status=0;
+				GPS_Data.numSV=0;
+			}
+    	 }
 
         //battery monitoring
         ADC0getSamplingResults(0xFF,adcChannelValues);
@@ -157,71 +161,79 @@ void mainloop(void) //mainloop is triggered at 1 kHz
 {
     static unsigned char led_cnt=0, led_state=1;
 
-	//blink red led if no GPS lock available
-	led_cnt++;
-	if((GPS_Data.status&0xFF)==0x03)
-	{
-		LED(0,OFF);
-	}
-	else
-	{
-	    if(led_cnt==150)
-	    {
-	      LED(0,ON);
-	    }
-	    else if(led_cnt==200)
-	    {
-	      led_cnt=0;
-	      LED(0,OFF);
-	    }
-	}
 
-	//after first lock, determine magnetic inclination and declination
-	if (SYSTEM_initialized)
-	{
-		if ((!declinationAvailable) && (GPS_Data.horizontal_accuracy<10000) && ((GPS_Data.status&0x03)==0x03)) //make sure GPS lock is valid
-		{
-			int status;
-			estimatedDeclination=getDeclination(GPS_Data.latitude,GPS_Data.longitude,GPS_Data.height/1000,2012,&status);
-			if (estimatedDeclination<-32000) estimatedDeclination=-32000;
-			if (estimatedDeclination>32000) estimatedDeclination=32000;
-			declinationAvailable=1;
-		}
-	}
-
-	//toggle green LED and update SDK input struct when GPS data packet is received
-    if (gpsLEDTrigger)
+    if(indoor!=1)
     {
-		if(led_state)
+
+		//blink red led if no GPS lock available
+		led_cnt++;
+		if((GPS_Data.status&0xFF)==0x03)
 		{
-			led_state=0;
-			LED(1,OFF);
+			LED(0,OFF);
 		}
 		else
 		{
-			LED(1,ON);
-			led_state=1;
+			if(led_cnt==150)
+			{
+			  LED(0,ON);
+			}
+			else if(led_cnt==200)
+			{
+			  led_cnt=0;
+			  LED(0,OFF);
+			}
 		}
 
-		RO_ALL_Data.GPS_height=GPS_Data.height;
-		RO_ALL_Data.GPS_latitude=GPS_Data.latitude;
-		RO_ALL_Data.GPS_longitude=GPS_Data.longitude;
-		RO_ALL_Data.GPS_speed_x=GPS_Data.speed_x;
-		RO_ALL_Data.GPS_speed_y=GPS_Data.speed_y;
-		RO_ALL_Data.GPS_status=GPS_Data.status;
-		RO_ALL_Data.GPS_sat_num=GPS_Data.numSV;
-		RO_ALL_Data.GPS_week=GPS_Time.week;
-		RO_ALL_Data.GPS_time_of_week=GPS_Time.time_of_week;
-		RO_ALL_Data.GPS_heading=GPS_Data.heading;
-		RO_ALL_Data.GPS_position_accuracy=GPS_Data.horizontal_accuracy;
-		RO_ALL_Data.GPS_speed_accuracy=GPS_Data.speed_accuracy;
-		RO_ALL_Data.GPS_height_accuracy=GPS_Data.vertical_accuracy;
+		//after first lock, determine magnetic inclination and declination
+		if (SYSTEM_initialized)
+		{
+			if ((!declinationAvailable) && (GPS_Data.horizontal_accuracy<10000) && ((GPS_Data.status&0x03)==0x03)) //make sure GPS lock is valid
+			{
+				int status;
+				estimatedDeclination=getDeclination(GPS_Data.latitude,GPS_Data.longitude,GPS_Data.height/1000,2012,&status);
+				if (estimatedDeclination<-32000) estimatedDeclination=-32000;
+				if (estimatedDeclination>32000) estimatedDeclination=32000;
+				declinationAvailable=1;
+			}
+		}
 
-		gpsLEDTrigger=0;
+
+		//toggle green LED and update SDK input struct when GPS data packet is received
+		if (gpsLEDTrigger)
+		{
+			if(led_state)
+			{
+				led_state=0;
+				LED(1,OFF);
+			}
+			else
+			{
+				LED(1,ON);
+				led_state=1;
+			}
+
+			RO_ALL_Data.GPS_height=GPS_Data.height;
+			RO_ALL_Data.GPS_latitude=GPS_Data.latitude;
+			RO_ALL_Data.GPS_longitude=GPS_Data.longitude;
+			RO_ALL_Data.GPS_speed_x=GPS_Data.speed_x;
+			RO_ALL_Data.GPS_speed_y=GPS_Data.speed_y;
+			RO_ALL_Data.GPS_status=GPS_Data.status;
+			RO_ALL_Data.GPS_sat_num=GPS_Data.numSV;
+			RO_ALL_Data.GPS_week=GPS_Time.week;
+			RO_ALL_Data.GPS_time_of_week=GPS_Time.time_of_week;
+			RO_ALL_Data.GPS_heading=GPS_Data.heading;
+			RO_ALL_Data.GPS_position_accuracy=GPS_Data.horizontal_accuracy;
+			RO_ALL_Data.GPS_speed_accuracy=GPS_Data.speed_accuracy;
+			RO_ALL_Data.GPS_height_accuracy=GPS_Data.vertical_accuracy;
+
+			gpsLEDTrigger=0;
+		}
+
     }
 
-    //handle gps data reception
-    uBloxReceiveEngine();
+    if(indoor!=1)
+		//handle gps data reception
+		uBloxReceiveEngine();
 
 	//run SDK mainloop. Please put all your data handling / controller code in sdk.c
 	SDK_mainloop();

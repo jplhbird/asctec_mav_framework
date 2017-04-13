@@ -143,7 +143,8 @@ __attribute__((packed))
   int32_t longitude;
 
   /// height [mm]
-  uint32_t height;
+  //uint32_t height;
+  int32_t height;
 
   /// pressure height [mm]
   int32_t pressure_height;

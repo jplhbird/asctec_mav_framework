@@ -58,7 +58,9 @@ void SSP_data_distribution_HL(void)
 	unsigned char i;
 	unsigned char current_page=LL_1khz_attitude_data.system_flags&0x03;
 
+
 	if(LL_1khz_attitude_data.system_flags&SF_GPS_NEW) gpsDataOkTrigger=0;
+
 
 	IMU_CalcData.angle_nick=LL_1khz_attitude_data.angle_pitch*10;
 	IMU_CalcData.angle_roll=LL_1khz_attitude_data.angle_roll*10;
@@ -156,7 +158,15 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 	LL_1khz_control_input.system_flags=0|pageselect;
 	//SSP_ack=0;	//reset ack
 
-	if(gpsDataOkTrigger) LL_1khz_control_input.system_flags|=SF_GPS_NEW;
+//	if(indoor==1)
+//	{
+//		//gpsDataOkTrigger=1;
+//		LL_1khz_control_input.system_flags|=SF_GPS_NEW;
+//	}
+//	else //test
+//	{
+		if(gpsDataOkTrigger) LL_1khz_control_input.system_flags|=SF_GPS_NEW;
+//	}
 
 	if(WO_SDK.ctrl_enabled)  LL_1khz_control_input.system_flags|=SF_HL_CONTROL_ENABLED|SF_NEW_SDK;
 	else LL_1khz_control_input.system_flags&=~(SF_HL_CONTROL_ENABLED|SF_NEW_SDK);
@@ -259,14 +269,34 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 
 	if(pageselect==0)
 	{
-		//fill struct with 500Hz data
-		LL_1khz_control_input.latitude=GPS_Data.latitude;
-		LL_1khz_control_input.longitude=GPS_Data.longitude;
-		LL_1khz_control_input.height=GPS_Data.height;
-		LL_1khz_control_input.speed_x=GPS_Data.speed_x;
-		LL_1khz_control_input.speed_y=GPS_Data.speed_y;
-		LL_1khz_control_input.heading=GPS_Data.heading;
-		LL_1khz_control_input.status=GPS_Data.status;
+		if(indoor==1)
+		{
+			//fill struct with 500Hz data
+			LL_1khz_control_input.latitude=GPS_Data_indoor.latitude;
+			LL_1khz_control_input.longitude=GPS_Data_indoor.longitude;
+			LL_1khz_control_input.height=GPS_Data_indoor.height;
+			LL_1khz_control_input.speed_x=GPS_Data_indoor.speed_x;
+			LL_1khz_control_input.speed_y=GPS_Data_indoor.speed_y;
+			LL_1khz_control_input.heading=GPS_Data_indoor.heading;
+			LL_1khz_control_input.status=GPS_Data_indoor.status;
+
+
+//			LL_1khz_control_input.latitude=5*10000000;
+//			LL_1khz_control_input.longitude=GPS_Data_indoor.longitude;
+//			LL_1khz_control_input.status=0;
+
+		}
+		else
+		{
+			//fill struct with 500Hz data
+			LL_1khz_control_input.latitude=GPS_Data.latitude;
+			LL_1khz_control_input.longitude=GPS_Data.longitude;
+			LL_1khz_control_input.height=GPS_Data.height;
+			LL_1khz_control_input.speed_x=GPS_Data.speed_x;
+			LL_1khz_control_input.speed_y=GPS_Data.speed_y;
+			LL_1khz_control_input.heading=GPS_Data.heading;
+			LL_1khz_control_input.status=GPS_Data.status;
+		}
 
 		//write data
 		LL_write_ctrl_data(pageselect);
@@ -275,11 +305,25 @@ int HL2LL_write_cycle(void)	//write data to low-level processor
 	}
 	else //pageselect=1
 	{
-		//fill struct with 500Hz data
-		LL_1khz_control_input.hor_accuracy=GPS_Data.horizontal_accuracy;
-		LL_1khz_control_input.vert_accuracy=GPS_Data.vertical_accuracy;
-		LL_1khz_control_input.speed_accuracy=GPS_Data.speed_accuracy;
-		LL_1khz_control_input.numSV=GPS_Data.numSV;
+		if(indoor==1)
+		{
+			//fill struct with 500Hz data
+			LL_1khz_control_input.hor_accuracy=GPS_Data_indoor.horizontal_accuracy;
+			LL_1khz_control_input.vert_accuracy=GPS_Data_indoor.vertical_accuracy;
+			LL_1khz_control_input.speed_accuracy=GPS_Data_indoor.speed_accuracy;
+			LL_1khz_control_input.numSV=GPS_Data_indoor.numSV;
+
+		}
+		else
+		{
+			//fill struct with 500Hz data
+			LL_1khz_control_input.hor_accuracy=GPS_Data.horizontal_accuracy;
+			LL_1khz_control_input.vert_accuracy=GPS_Data.vertical_accuracy;
+			LL_1khz_control_input.speed_accuracy=GPS_Data.speed_accuracy;
+			LL_1khz_control_input.numSV=GPS_Data.numSV;
+		}
+
+
 		LL_1khz_control_input.battery_voltage_1=HL_Status.battery_voltage_1;
 		LL_1khz_control_input.battery_voltage_2=HL_Status.battery_voltage_2;
 		if (declinationAvailable==1)

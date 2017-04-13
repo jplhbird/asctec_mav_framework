@@ -331,8 +331,6 @@ struct WAYPOINT { //waypoint definition
 
 //max. speed to travel to waypoint in % (default 100)
   unsigned char max_speed;
-
-//time to stay at a waypoint (XYZ) in 1/100 s
   unsigned short time;
 
 //position accuracy to consider a waypoint reached in mm (recommended: 3000 (= 3.0 m))
@@ -341,9 +339,9 @@ struct WAYPOINT { //waypoint definition
 //chksum = 0xAAAA + wp.yaw + wp.height + wp.time + wp.X + wp.Y + wp.max_speed + wp.pos_acc + wp.properties + wp.wp_number;
   short chksum;
 
- //relative waypoint coordinates in mm 	// longitude in abs coords e.g. 113647430 (= 11.3647430�; angle in degrees * 10^7)
+// longitude in abs coords e.g. 113647430 (= 11.3647430�; angle in degrees * 10^7)
   int X;
- //relative waypoint coordinates in mm  	// latitude in abs coords e.g. 480950480 (= 48.0950480�; angle in degrees * 10^7)
+// latitude in abs coords e.g. 480950480 (= 48.0950480�; angle in degrees * 10^7)
   int Y;
 
 //yaw angle

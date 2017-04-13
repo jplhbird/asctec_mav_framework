@@ -140,16 +140,20 @@ int flag_waypoint_begin=0;
 static int flag_waypoint_complete=0;
 static int flag_enable=0;
 
-//excute the waypoints commad:
+int accuracy=3000; //the accuracy information from onboard computer
+
+// execute the waypoints command:
 static int i_current=0;
 static int wpState=0;
 
+static int timer=0; //used to set the virtual GPS flag
+
 
 static double originLat_indoor=0;
-static double originLon_indoor=0; //the virtual latitude and lonitude, indoor
+static double originLon_indoor=0; //the virtual latitude and longitude, indoor
 static double originheight_indoor=0; //the virtual height, indoor
 
-int indoor=0;
+int indoor=1;
 //indoor or outdoor
 //1: indoor, SLMA module provide information of position and velocity,
 //0: outdoor GPS environment
@@ -364,6 +368,8 @@ void SDK_mainloop(void)
 			flag_enable=1;
 			wpState=0;
 
+			accuracy=extPositionCmd.heading;
+
 			statusData.debug2 = statusData.debug2 + no_tatal;
     	}
 
@@ -531,7 +537,15 @@ void SDK_mainloop(void)
       extPositionValid = 0;
   }
 
-  virtualgps();
+  timer++;
+  if(timer>=200)
+  {
+	  timer=0;
+	  //gpsDataOkTrigger=1;
+	  virtualgps();
+  }
+
+
 
   // dekf initialize state machine
   // sets the acc/height/gps switch to 0 for 10 loops so that refmodel gets reset to the new state
@@ -782,7 +796,7 @@ inline void sendGpsData(void)
 
   if(indoor==1)
   {
-	  gpsData.latitude = GPS_Data_indoor.latitude;
+ 	  gpsData.latitude = GPS_Data_indoor.latitude;
 	  gpsData.longitude = GPS_Data_indoor.longitude;
 	  gpsData.heading = LL_1khz_attitude_data.angle_yaw;
 	  gpsData.height = GPS_Data_indoor.height;
@@ -790,10 +804,20 @@ inline void sendGpsData(void)
 	  gpsData.speedX = GPS_Data_indoor.speed_x;
 	  gpsData.speedY = GPS_Data_indoor.speed_y;
 	  gpsData.horizontalAccuracy = GPS_Data_indoor.horizontal_accuracy;
-	  gpsData.verticalAccuracy = GPS_Data_indoor.horizontal_accuracy;
+	  gpsData.verticalAccuracy = GPS_Data_indoor.vertical_accuracy;
 	  gpsData.speedAccuracy = GPS_Data_indoor.speed_accuracy;
 	  gpsData.numSatellites = GPS_Data_indoor.numSV;
 	  gpsData.status = GPS_Data_indoor.status;
+
+
+///////test, the fused information:
+	  gpsData.latitude=RO_ALL_Data.fusion_latitude;
+	  gpsData.longitude=RO_ALL_Data.fusion_longitude;
+	  gpsData.speedX=RO_ALL_Data.fusion_speed_x;
+	  gpsData.speedY=RO_ALL_Data.fusion_speed_y;
+
+	  gpsData.longitude=LL_1khz_control_input.longitude;
+	  gpsData.latitude=LL_1khz_control_input.latitude;
 
   }
   else
@@ -806,7 +830,7 @@ inline void sendGpsData(void)
 	  gpsData.speedX = GPS_Data.speed_x;
 	  gpsData.speedY = GPS_Data.speed_y;
 	  gpsData.horizontalAccuracy = GPS_Data.horizontal_accuracy;
-	  gpsData.verticalAccuracy = GPS_Data.horizontal_accuracy;
+	  gpsData.verticalAccuracy = GPS_Data.vertical_accuracy;
 	  gpsData.speedAccuracy = GPS_Data.speed_accuracy;
 	  gpsData.numSatellites = GPS_Data.numSV;
 	  gpsData.status = GPS_Data.status;
@@ -984,7 +1008,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 			//fill waypoint structure
 			wpToLL.max_speed=100;
 			wpToLL.pos_acc=3000; 	//3m accuracy
-			wpToLL.time=400; 		//4 seconds waiting time at each waypoint
+			wpToLL.time=400;
 			wpToLL.wp_activated=1;
 
 			//see LL_HL_comm.h for WPPROP defines
@@ -1046,7 +1070,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					//fill waypoint structure
 					wpToLL.max_speed=100;
 					wpToLL.pos_acc=3000; //3m accuracy
-					wpToLL.time=400; //4 seconds wait time
+					wpToLL.time=400;
 					wpToLL.wp_activated=1;
 
 					//see LL_HL_comm.h for WPPROP defines
@@ -1117,7 +1141,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					//fill waypoint structure
 					wpToLL.max_speed=100;
 					wpToLL.pos_acc=3000; //3m accuracy
-					wpToLL.time=400; //4 seconds wait time
+					wpToLL.time=400;
 					wpToLL.wp_activated=1;
 
 					//see LL_HL_comm.h for WPPROP defines
@@ -1190,7 +1214,7 @@ void SDK_EXAMPLE_gps_waypoint_control()
 					//fill waypoint structure
 					wpToLL.max_speed=100;
 					wpToLL.pos_acc=3000; //3m accuracy
-					wpToLL.time=400; //4 seconds wait time
+					wpToLL.time=400;
 					wpToLL.wp_activated=1;
 
 					//see LL_HL_comm.h for WPPROP defines
@@ -1288,8 +1312,8 @@ void SDK_series_waypoint_control()
 
 			//fill waypoint structure
 			wpToLL.max_speed=100;
-			wpToLL.pos_acc=3000; 	//3m accuracy
-			wpToLL.time=400; 		//4 seconds waiting time at each waypoint
+			wpToLL.pos_acc=accuracy; 	//3m accuracy
+			wpToLL.time=400;
 			wpToLL.wp_activated=1;
 
 			//see LL_HL_comm.h for WPPROP defines
@@ -1361,8 +1385,8 @@ void SDK_series_waypoint_control()
 
 					//fill waypoint structure
 					wpToLL.max_speed=100;
-					wpToLL.pos_acc=3000; //3m accuracy
-					wpToLL.time=400; //4 seconds wait time
+					wpToLL.pos_acc=accuracy; //3m accuracy
+					wpToLL.time=400;
 					wpToLL.wp_activated=1;
 
 					//see LL_HL_comm.h for WPPROP defines
@@ -1614,23 +1638,29 @@ void virtualgps(void)
 
 		height=originheight_indoor-(double)extPosition.z/1000.0; //unit: m
 
+
 		GPS_Data_indoor.height=height*1000; //unit: mm
 
-		GPS_Data_indoor.numSV=7;
+		GPS_Data_indoor.numSV=10;
 
 		//		//speed in x (E/W) and y(N/S) in mm/s
 		GPS_Data_indoor.speed_x=extPosition.vY;
 		GPS_Data_indoor.speed_y=extPosition.vX;
 		GPS_Data_indoor.heading=extPosition.heading;
+		GPS_Data_indoor.heading=imuData.ang_yaw;
 		//		//GPS heading in deg * 1000
 		//			int heading;
 
 
 		//accuracy estimates in mm and mm/s
-		GPS_Data_indoor.horizontal_accuracy=0.1;
-		GPS_Data_indoor.vertical_accuracy=0.1;
-		GPS_Data_indoor.speed_accuracy=0.1;
+		GPS_Data_indoor.horizontal_accuracy=100;
+		GPS_Data_indoor.vertical_accuracy=100;
+		GPS_Data_indoor.speed_accuracy=10;
 
+		//status of GPS, record from outdoor test
+		GPS_Data_indoor.status=56579;
+
+		gpsDataOkTrigger=1;
 	}
 
 }

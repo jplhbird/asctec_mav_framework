@@ -216,6 +216,8 @@ void HLInterface::processGpsData(uint8_t * buf, uint32_t bufLength)
   gps_status_ = gps_fix->status.status;
   gps_satellites_used_ = data->numSatellites;
 
+  ROS_INFO_STREAM("gps status"<<data->status);
+
   seq++;
   gps_pub_.publish(gps_fix);
   gps_custom_pub_.publish(gps_custom);
